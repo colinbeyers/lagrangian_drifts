@@ -1,0 +1,26 @@
+{
+    "pathname": "/home/colin_beyers/data/cllc-U,V,mag.nc4",
+    "variables": {
+        "U": "U",
+        "V": "V"
+    },
+    "dimensions": {
+        "lat": "lat",
+        "lon": "lon",
+        "time": "time"
+    },
+    "particles": {
+        "lon": [-135],
+        "lat": [40.0]
+    },
+    "kernels": ["AdvectionRK4", "TotalDistance", "BoundaryCheck"],
+    "output": {
+        "directory": "../output",
+        "file_name": "cllc-total_eulerian-TEST.zarr"
+    },
+    "runtime": {
+        "days": 5,
+        "dt_minutes": 5
+    },
+    "output_interval_hours": 6
+}
