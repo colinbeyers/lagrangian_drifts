@@ -2,12 +2,13 @@ import math
 import parcels
 import numpy as np
 from operator import attrgetter
+from fieldset_vars import FieldsetVariable
 
 BoundaryCheck_vars = {
-    'lat_min': '0',
-    'lat_max': '0',
-    'lon_min': '0',
-    'lon_max': '0'   
+    'lat_min': FieldsetVariable('lat_min', lambda fieldset: fieldset.U.grid.lat[0]),
+    'lat_max': FieldsetVariable('lat_max', lambda fieldset: fieldset.U.grid.lat[-1]),
+    'lon_min': FieldsetVariable('lon_min', lambda fieldset: fieldset.U.grid.lon[0]),
+    'lon_max': FieldsetVariable('lon_max', lambda fieldset: fieldset.U.grid.lon[-1]),
 }
 # Kernel function to check if particle is out of bounds and delete it
 def BoundaryCheck(particle, fieldset, time):
