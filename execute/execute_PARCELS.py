@@ -1,9 +1,12 @@
 import json
 import parcels
 from datetime import timedelta
+from fieldset_vars import FieldsetVariable
 import kernels
 import logging
 import time
+import numpy as np
+import xarray as xr
 
 # Configure logging to write to a file
 logging.basicConfig(
@@ -27,7 +30,11 @@ def collect_extra_vars(kernel_list):
     for kernel in kernel_list:
         var_name = f"{kernel.__name__}_vars"
         if hasattr(kernels, var_name):
-            extra_vars.extend(getattr(kernels, var_name))
+            kernel_vars = getattr(kernels, var_name)
+            if isinstance(kernel_vars, dict):
+                extra_vars.extend(kernel_vars.values())  # Collect FieldsetVariable objects
+            else:
+                extra_vars.extend(kernel_vars)
     logging.info("Collected extra variables for kernels: %s", extra_vars)
     return extra_vars
 
@@ -46,18 +53,40 @@ def load_kernels(kernel_names, parcels, kernels):
 
 # Function to create the FieldSet from the dataset and config
 def create_fieldset(config):
-    filenames = {
-        "U": config["pathname"],  # Path to the dataset
-        "V": config["pathname"],  # Use the same dataset for U and V currents
-    }
-    variables = {
-        "U": config["variables"]["U"],
-        "V": config["variables"]["V"],
-    }
-    dimensions = config["dimensions"]
+    # Load the main dataset
+    main_dataset = xr.open_dataset(config["pathname"])
+    
+    # Check if coastal boundary currents should be included
+    if config.get("coastal_boundary", {}).get("include", False):
+        coastal_boundary_path = config["coastal_boundary"]["path"]
+        logging.info("Loading coastal boundary currents from %s", coastal_boundary_path)
 
-    logging.info("Creating FieldSet with filenames: %s", filenames)
-    return parcels.FieldSet.from_netcdf(filenames, variables, dimensions)
+        # Load the coastal boundary currents dataset
+        coastal_dataset = xr.open_dataset(coastal_boundary_path)
+
+        # Combine the datasets, assuming they have the same dimensions
+        combined_dataset = coastal_dataset + main_dataset
+
+        # Assign the combined data variables to the filenames and variables
+        filenames = {
+            "U": combined_dataset["U"],
+            "V": combined_dataset["V"],
+        }
+        variables = {
+            "U": "U",
+            "V": "V",
+        }
+        dimensions = config["dimensions"]
+
+        # Create a FieldSet with the combined dataset
+        fieldset = parcels.FieldSet.from_xarray_dataset(combined_dataset, variables, dimensions)
+    else:
+        logging.info("Creating FieldSet without coastal boundary currents")
+        # Create the FieldSet without combining datasets
+        fieldset = parcels.FieldSet.from_netcdf(config["pathname"], variables, dimensions)
+
+    logging.info("FieldSet created with filenames: %s", config["pathname"])
+    return fieldset
 
 # Function to create the ParticleSet
 def create_particle_set(fieldset, particle_class, config):
@@ -91,31 +120,21 @@ def main():
 
     # Collect the extra variables required by the kernels
     extra_vars = collect_extra_vars(kernel_list)
-    #extra vars need to be split between fieldset vars and partcle vars
 
-    # logging.info(f"Debug: {extra_vars}")
-
-    # Create a new particle class with additional variables
-    particles = parcels.JITParticle.add_variables(extra_vars)
+    extra_particle_vars = []
+    for extra_var in extra_vars:
+        if type(extra_var) == parcels.particle.Variable:
+            extra_particle_vars.append(extra_var)
+    particles = parcels.JITParticle.add_variables(extra_particle_vars)
 
     # Create the fieldset based on the provided config
     fieldset = create_fieldset(config)
 
-    # add fieldset etra vars to fielset
     for extra_var in extra_vars:
-        fieldset = fieldset.add_constant(extra_var.name, extra_var)
-
-    # Compute and add boundary constants to the fieldset
-    lon_min = fieldset.U.grid.lon[0]
-    lon_max = fieldset.U.grid.lon[-1]
-    lat_min = fieldset.U.grid.lat[0]
-    lat_max = fieldset.U.grid.lat[-1]
-
-
-    fieldset.add_constant("lon_min", lon_min)
-    fieldset.add_constant("lon_max", lon_max)
-    fieldset.add_constant("lat_min", lat_min)
-    fieldset.add_constant("lat_max", lat_max)
+        if isinstance(extra_var, FieldsetVariable):
+            fieldset.add_constant(extra_var.name, extra_var.value(fieldset))  # Pass fieldset here
+        else:
+            fieldset.add_constant(extra_var.name, extra_var)
 
     # Create the ParticleSet based on the particles defined in the config
     pset = create_particle_set(fieldset, particles, config)
