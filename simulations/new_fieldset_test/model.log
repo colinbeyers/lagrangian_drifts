@@ -1,0 +1,17 @@
+2024-10-01 15:58:21,101 - INFO - Loading configuration from config.json
+2024-10-01 15:58:21,102 - INFO - Loaded kernels: ['AdvectionRK4', 'TotalDistance', 'BoundaryCheck']
+2024-10-01 15:58:21,102 - INFO - Collected extra variables for kernels: [PVar<distance|<class 'numpy.float32'>>, PVar<prev_lon|<class 'numpy.float32'>>, PVar<prev_lat|<class 'numpy.float32'>>, <FieldsetVariable lat_min>, <FieldsetVariable lat_max>, <FieldsetVariable lon_min>, <FieldsetVariable lon_max>]
+2024-10-01 15:58:21,102 - INFO - Creating FieldSet with filenames: {'U': '/home/colin_beyers/data/cllc-U,V,mag.nc4', 'V': '/home/colin_beyers/data/cllc-U,V,mag.nc4'}
+2024-10-01 15:58:21,146 - INFO - Creating ParticleSet with initial locations: lon=[-135], lat=[40.0]
+2024-10-01 15:58:21,161 - INFO - Setting up output file: /output/new_fieldset_test.zarr with interval 6:00:00
+2024-10-01 15:58:21,162 - INFO - Starting the simulation...
+2024-10-01 15:58:22,797 - INFO - Output files are stored in /output/new_fieldset_test.zarr.
+2024-10-01 16:00:03,800 - INFO - Loading configuration from config.json
+2024-10-01 16:00:03,800 - INFO - Loaded kernels: ['AdvectionRK4', 'TotalDistance', 'BoundaryCheck']
+2024-10-01 16:00:03,800 - INFO - Collected extra variables for kernels: [PVar<distance|<class 'numpy.float32'>>, PVar<prev_lon|<class 'numpy.float32'>>, PVar<prev_lat|<class 'numpy.float32'>>, <FieldsetVariable lat_min>, <FieldsetVariable lat_max>, <FieldsetVariable lon_min>, <FieldsetVariable lon_max>]
+2024-10-01 16:00:03,800 - INFO - Creating FieldSet with filenames: {'U': '/home/colin_beyers/data/cllc-U,V,mag.nc4', 'V': '/home/colin_beyers/data/cllc-U,V,mag.nc4'}
+2024-10-01 16:00:03,846 - INFO - Creating ParticleSet with initial locations: lon=[-135], lat=[40.0]
+2024-10-01 16:00:03,847 - INFO - Setting up output file: ./output/new_fieldset_test.zarr with interval 6:00:00
+2024-10-01 16:00:03,847 - INFO - Starting the simulation...
+2024-10-01 16:00:05,188 - INFO - Output files are stored in ./output/new_fieldset_test.zarr.
+2024-10-01 16:00:08,540 - INFO - Simulation completed in 4.69 seconds

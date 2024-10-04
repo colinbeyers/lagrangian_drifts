@@ -1,0 +1,31 @@
+{
+    "pathname": "/home/colin_beyers/data/CCS-U(wcb),V(wcb),mag-01202020_20292021.nc",
+    "variable_names": {
+        "U": "U",
+        "V": "V"
+    },
+    "dimension_names": {
+        "time": "time",
+        "lat": "lats.txt",
+        "lon": "lon.txt"
+    },
+    "particles": {
+        "lon": [-135],
+        "lat": [40.0]
+    },
+    "kernels": ["AdvectionRK4", "TotalDistance", "BoundaryCheck"],
+    "output": {
+        "directory": "./output",
+        "file_name": "new_fieldset_test.zarr"
+    },
+    "runtime": {
+        "days": 5,
+        "dt_minutes": 5
+    },
+    "output_interval_hours": 6,
+    "coastal_boundary": {
+        "include": true,
+        "compute": false,
+        "path": null
+    }
+}

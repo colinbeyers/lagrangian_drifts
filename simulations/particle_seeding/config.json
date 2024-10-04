@@ -1,0 +1,31 @@
+{
+    "pathname": "/home/colin_beyers/data/CCS-U(wcb),V(wcb),mag-01202020_20292021.nc",
+    "variable_names": {
+        "U": "U",
+        "V": "V"
+    },
+    "dimension_names": {
+        "time": "time",
+        "lat": "lat",
+        "lon": "lon"
+    },
+    "particles": {
+        "lat_file": "/home/colin_beyers/lagrangian_drifts/simulations/particle_seeding/lats.txt",
+        "lon_file": "/home/colin_beyers/lagrangian_drifts/simulations/particle_seeding/lons.txt"
+    },
+    "kernels": ["AdvectionRK4", "TotalDistance", "BoundaryCheck"],
+    "output": {
+        "directory": ".",
+        "file_name": "particle_seeding.zarr"
+    },
+    "runtime": {
+        "days": 5,
+        "dt_minutes": 5
+    },
+    "output_interval_hours": 6,
+    "coastal_boundary": {
+        "include": true,
+        "compute": false,
+        "path": null
+    }
+}
