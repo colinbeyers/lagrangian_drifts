@@ -7,6 +7,7 @@ import logging
 import time
 import numpy as np
 import xarray as xr
+import coastal_boundary
 
 # Configure logging to write to a file
 logging.basicConfig(
@@ -51,52 +52,74 @@ def load_kernels(kernel_names, parcels, kernels):
     logging.info("Loaded kernels: %s", kernel_names)
     return kernel_list
 
-# Function to create the FieldSet from the dataset and config
 def create_fieldset(config):
-    # Load the main dataset
-    main_dataset = xr.open_dataset(config["pathname"])
+    if config.get("variable_names", {}):
+        vars = config["variable_names"]
     
-    # Check if coastal boundary currents should be included
+    if config.get("dimension_names", {}):
+        dims = config["dimension_names"]
+    
     if config.get("coastal_boundary", {}).get("include", False):
-        coastal_boundary_path = config["coastal_boundary"]["path"]
-        logging.info("Loading coastal boundary currents from %s", coastal_boundary_path)
+        logging.info("Including a coastal boundary.")
 
-        # Load the coastal boundary currents dataset
-        coastal_dataset = xr.open_dataset(coastal_boundary_path)
+        if not config.get("coastal_boundary", {}).get("path", "") == None:
+            logging.warning("Coastal boundary has not yet been added to the main dataset. Adding...")
+            ds = xr.open_dataset(config["coastal_boundary"]["path"])
+            ds_boundary = xr.open_dataset(config["coastal_boundary"]["path"])
+            ds_combined = coastal_boundary.add_datasets(ds, ds_boundary)
 
-        # Combine the datasets, assuming they have the same dimensions
-        combined_dataset = coastal_dataset + main_dataset
+            fieldset = parcels.FieldSet.from_xarray_dataset(ds_combined, vars, dims)
+            logging.info("Fieldset created with filenames: %s", config["coastal_boundary"]["path"])
+            
+        if config.get("coastal_boundary", {}).get("path", "") == None:
+            logging.warning("No coastal boundary path provided. Assuming main path includes the coastal boundary already.")
 
-        # Assign the combined data variables to the filenames and variables
-        filenames = {
-            "U": combined_dataset["U"],
-            "V": combined_dataset["V"],
-        }
-        variables = {
-            "U": "U",
-            "V": "V",
-        }
-        dimensions = config["dimensions"]
-
-        # Create a FieldSet with the combined dataset
-        fieldset = parcels.FieldSet.from_xarray_dataset(combined_dataset, variables, dimensions)
+            fieldset = parcels.FieldSet.from_netcdf(config["pathname"], vars, dims)
+            logging.info("Fieldset created with filenames: %s", config["pathname"])
     else:
-        logging.info("Creating FieldSet without coastal boundary currents")
-        # Create the FieldSet without combining datasets
-        fieldset = parcels.FieldSet.from_netcdf(config["pathname"], variables, dimensions)
+        logging.info("Not including a coastal boundary.")
 
-    logging.info("FieldSet created with filenames: %s", config["pathname"])
+        fieldset = parcels.FieldSet.from_netcdf(config["pathname"], vars, dims)
+        logging.info("Fieldset created with filenames: %s", config["pathname"])
+
     return fieldset
 
-# Function to create the ParticleSet
+def load_coords(config):
+    """Load longitude and latitude lists from specified text files in the config."""
+    lat_file = config["particles"]["lat_file"]
+    lon_file = config["particles"]["lon_file"]
+
+    try:
+        # Read the latitude values
+        lats = np.loadtxt(lat_file).tolist()  # Convert to list
+        logging.info(f"Loaded latitudes: {lats}")
+
+        # Read the longitude values
+        lons = np.loadtxt(lon_file).tolist()  # Convert to list
+        logging.info(f"Loaded longitudes: {lons}")
+
+        return lats, lons
+    except Exception as e:
+        logging.error(f"Error loading coordinates: {e}")
+        return [], []
+
 def create_particle_set(fieldset, particle_class, config):
+    """Create a ParticleSet with initial locations from config."""
+    # Load lons and lats from the specified files
+    lats, lons = load_coords(config)
+    
+    if not lons or not lats:
+        logging.error("No valid coordinates found. ParticleSet cannot be created.")
+        return None  # Return None or raise an exception if coordinates are invalid
+
     logging.info("Creating ParticleSet with initial locations: lon=%s, lat=%s",
-                 config["particles"]["lon"], config["particles"]["lat"])
+                 lons, lats)
+
     return parcels.ParticleSet(
         fieldset=fieldset,
         pclass=particle_class,
-        lon=config["particles"]["lon"],
-        lat=config["particles"]["lat"]
+        lon=lons,
+        lat=lats
     )
 
 # Function to set up the ParticleFile for output
@@ -110,17 +133,17 @@ def setup_output_file(pset, config):
 
 # Main function to execute the simulation
 def main():
-    # Load the configuration
+
+    # load the model configuration
     config = load_config()
 
     # Load the kernels dynamically based on the config
     kernel_list = load_kernels(config.get("kernels", []), parcels, kernels)
 
-    # logging.info(f"Debug: {kernel_list}")
-
     # Collect the extra variables required by the kernels
     extra_vars = collect_extra_vars(kernel_list)
 
+    # Add extra particle type variables to particle class
     extra_particle_vars = []
     for extra_var in extra_vars:
         if type(extra_var) == parcels.particle.Variable:
@@ -130,13 +153,14 @@ def main():
     # Create the fieldset based on the provided config
     fieldset = create_fieldset(config)
 
+    # Add extra fieldset type variables to fieldset object
     for extra_var in extra_vars:
         if isinstance(extra_var, FieldsetVariable):
-            fieldset.add_constant(extra_var.name, extra_var.value(fieldset))  # Pass fieldset here
+            fieldset.add_constant(extra_var.name, extra_var.value(fieldset))
         else:
             fieldset.add_constant(extra_var.name, extra_var)
 
-    # Create the ParticleSet based on the particles defined in the config
+    # Create the ParticleSet based on the fieldset object and particle class
     pset = create_particle_set(fieldset, particles, config)
 
     # Set up the output file
@@ -144,17 +168,17 @@ def main():
 
     # Execute the simulation and measure time
     start_time = time.time()
-    logging.info("Starting the simulation...")
+    logging.info(f"Starting the simulation at {start_time}...")
     
     pset.execute(
-        kernel_list,  # list of kernels to be executed
+        kernel_list,
         runtime=timedelta(days=config["runtime"].get("days", 10)),
         dt=timedelta(minutes=config["runtime"].get("dt_minutes", 5)),
         output_file=output_file,
     )
 
     end_time = time.time()
-    logging.info("Simulation completed in %.2f seconds", end_time - start_time)
+    logging.info(f"Simulation completed in {end_time - start_time} seconds")
 
 # Check if the script is being run directly
 if __name__ == "__main__":
